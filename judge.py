@@ -1,14 +1,13 @@
 from subprocess import run, check_output, TimeoutExpired, CompletedProcess
 from sys import argv
-from os.path import splitext, join, abspath, isfile
+from os.path import split, splitext, join, abspath, isfile
 from getpass import getpass
 from hashlib import sha256
 from time import sleep, strftime, localtime
 from shlex import split as lexsplit
 import pickle
 
-TIME_LIMIT = 2000
-ALLOWED_LANGUAGES = {
+LANGUAGES = {
     ".c": ("C99", "gcc {} -o {} --std=c99 -lm"),
     ".cpp": ("C++17", "g++ {} -o {} --std=c++17"),
 }
@@ -25,13 +24,14 @@ class Test:
 
     def __init__(self, uid, inp, max_score, is_gen):
         self.uid = uid
-        self.inp = inp  # stores input path initially, stores first few characters of input after judging
+        self.inp = inp  # stores input filename initially, stores first few characters of input after judging
         self.is_gen = is_gen  # true if the file pointed by inp is a generator, false if it is plain text
         self.max_score = max_score
         self.score = 0
         self.verdict = 0
-        stem, ext = splitext(self.inp)
-        self.out = stem + "_o" + ext
+        path, base = split(self.inp)
+        stem, ext = splitext(base)
+        self.out = join(path, "out_" + stem + ".txt")
         self.log = ""
 
 
@@ -69,17 +69,17 @@ def print_result(test):
 
 def check(test):
     """
-    Runs a test case on target.
+    Runs checker on test result.
     """
     if not test.verdict:
         if test.is_gen:
-            checker_inp = check_output([join(base_path, test.inp)])
+            checker_input = check_output([join(base_path, test.inp)])
         else:
             with open(join(base_path, test.inp), 'rb') as content_file:
-                checker_inp = content_file.read()
+                checker_input = content_file.read()
         with open(join(base_path, test.out), 'rb') as content_file:
-            checker_inp += content_file.read()
-        p = run(join(base_path, "data/checker"), input=checker_inp, capture_output=True)
+            checker_input += content_file.read()
+        p = run(join(base_path, "data/checker"), input=checker_input, capture_output=True)
         test.verdict = p.returncode
         if test.verdict == 1:
             test.score = test.max_score
@@ -168,26 +168,28 @@ def main():
     if not verify_pass(getpass(), "judge"):
         return
 
+    with open(join(base_path, "data", "metadata.pkl"), 'rb') as data_file:
+        metadata = pickle.load(data_file)
+    time_limit = metadata["time_limit"]
+    allowed_languages = metadata["allowed_languages"]
+    tests = metadata["tests"]
+
     filename = argv[1]
     run("clear")
     print("Judging {}...".format(ansi_color(filename, 36)))
     stem, ext = splitext(filename)
-    if ext not in ALLOWED_LANGUAGES:
+    if ext not in allowed_languages:
         print("Invalid file extension.\nAllowed files are:")
-        for allowed_ext in ALLOWED_LANGUAGES:
-            print(allowed_ext, "({})".format(ALLOWED_LANGUAGES[allowed_ext][0]))
+        for allowed_ext in allowed_languages:
+            print(allowed_ext, "({})".format(LANGUAGES[allowed_ext][0]))
         return
     print()
-    command = ALLOWED_LANGUAGES[ext][1].format(filename, stem)
+    command = LANGUAGES[ext][1].format(filename, stem)
     p = run(lexsplit(command))
 
-    # compilation error
     if p.returncode:
         print(ansi_color("\nVerdict:", 1, 37), ansi_color("COMPILATION_ERROR", 1, 41, 30))
         return
-
-    with open(join(base_path, "data/tests", "dat.pkl"), 'rb') as data_file:
-        tests = pickle.load(data_file)
 
     print("\n| {:>10} | {:<27} | {:>5} | {}".format(
             ansi_color("#", 1),
@@ -210,7 +212,7 @@ def main():
             with open(join(base_path, test.inp), 'rb') as content_file:
                 input_content = content_file.read()
         try:
-            p = run(join(".", stem), input=input_content, capture_output=True, timeout=TIME_LIMIT/1000)
+            p = run(join(".", stem), input=input_content, capture_output=True, timeout=time_limit/1000)
             if p.returncode:
                 test.log = "exit code is {}".format(p.returncode)
                 test.verdict = 4
@@ -218,12 +220,12 @@ def main():
             p = CompletedProcess("", 0)
             p.stdout = b""
             test.verdict = 3
-            test.log = "running time exceeded {}ms".format(TIME_LIMIT)
+            test.log = "running time exceeded {}ms".format(time_limit)
 
         with open(join(base_path, test.out), 'wb') as the_file:
             the_file.write(p.stdout)
 
-        check(test)  # run the current test
+        check(test)  # check if output was correct
         passed_cases += (test.verdict == 1)
         total += test.score
         max_total += test.max_score

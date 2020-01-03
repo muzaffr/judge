@@ -1,0 +1,31 @@
+{
+    "name": "Sample",
+    "id": "0",
+    "time_limit": 2000,
+    "allowed_languages": [
+        ".c",
+        ".cpp"
+    ],
+    "passwords": {
+        "judge": "1234",
+        "reveal": "meow"
+    },
+    "tests": [
+        ["t01.txt", 1],
+        ["t02.txt", 1],
+        ["t03.txt", 2],
+        ["t04.txt", 2],
+        ["t05.txt", 1],
+        ["t06.txt", 1],
+        ["t07.txt", 2],
+        ["t08.txt", 2],
+        ["t09.txt", 1],
+        ["t10.txt", 1],
+        ["t11.cpp", 2],
+        ["t12.cpp", 3],
+        ["t13.cpp", 2],
+        ["t14.cpp", 1],
+        ["t15.cpp", 1]
+    ],
+    "checker_source": "checker.cpp"
+}
