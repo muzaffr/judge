@@ -11,18 +11,17 @@ from judge import Test
 with open("config.json") as the_file:
     config = json.load(the_file)
 
-base = join(abspath(pardir), "data")
-makedirs(join(base, "hashes"), exist_ok=True)
-makedirs(join(base, "tests"), exist_ok=True)
+target = join(abspath(pardir), "data")
+makedirs(join(target, "hashes"), exist_ok=True)
+makedirs(join(target, "tests"), exist_ok=True)
 
 for action, password in config["passwords"].items():
-    with open(join(pardir, "data", "hashes", action), 'w') as the_file:
+    with open(join(target, "hashes", action), 'w') as the_file:
         the_file.write(sha256(password.encode("utf-8")).hexdigest())
 
 del config["passwords"]
 
 tests = []
-tests_dir = abspath(join(pardir, "data", "tests"))
 
 for index, test in enumerate(config["tests"]):
 
@@ -32,12 +31,12 @@ for index, test in enumerate(config["tests"]):
     if ext == ".txt":
         with open(join("tests", name), 'rb') as the_file:
             content = the_file.read().replace(b"\r\n", b"\n")
-        with open(join(tests_dir, name), 'wb') as the_file:
+        with open(join(target, "tests", name), 'wb') as the_file:
             the_file.write(content)
         is_gen = False
 
     elif ext == ".cpp":
-        run(["g++", join("tests", name), "-o", join(tests_dir, stem+".out"), "-std=c++17"])
+        run(["g++", join("tests", name), "-o", join(target, "tests", stem+".out"), "-std=c++17"])
         name = stem + ".out"
         is_gen = True
 
@@ -48,7 +47,7 @@ for index, test in enumerate(config["tests"]):
 
 config["tests"] = tests
 
-run(["g++", config.pop("checker_source"), "-o", join(pardir, "data", "checker"), "-std=c++17"])
+run(["g++", config.pop("checker_source"), "-o", join(target, "checker"), "-std=c++17"])
 
-with open(join(pardir, "data", "metadata.pkl"), 'wb') as the_file:
+with open(join(target, "metadata.pkl"), 'wb') as the_file:
     pickle.dump(config, the_file, -1)
